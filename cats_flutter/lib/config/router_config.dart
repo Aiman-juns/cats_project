@@ -9,6 +9,7 @@ import '../features/assistant/screens/assistant_screen.dart';
 import '../features/performance/screens/performance_screen.dart';
 import '../features/news/screens/news_screen.dart';
 import '../features/news/screens/news_detail_screen.dart';
+import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../shared/widgets/app_shell.dart';
 
 /// GoRouter Configuration for CyberGuard
@@ -89,6 +90,14 @@ class RouterConfig {
             child: NewsDetailScreen(newsId: newsId),
           );
         },
+      ),
+      // Phase 5: Admin dashboard route (outside shell, admin only)
+      GoRoute(
+        path: '/admin',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const AdminDashboardScreen(),
+        ),
       ),
     ],
     errorPageBuilder: (context, state) => MaterialPage(
