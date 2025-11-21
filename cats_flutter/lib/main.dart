@@ -5,6 +5,7 @@ import 'config/supabase_config.dart';
 import 'config/router_config.dart' as app_router;
 import 'shared/theme/app_theme.dart';
 import 'auth/providers/auth_provider.dart';
+import 'shared/providers/theme_provider.dart';
 
 void main() async {
   // Initialize Supabase before running the app
@@ -20,6 +21,8 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch the auth provider to listen for user changes
     final authState = ref.watch(authProvider);
+    // Watch the theme provider to listen for theme changes
+    final isDarkMode = ref.watch(themeProvider);
 
     // Build a router with admin redirect logic
     final router = GoRouter(
@@ -92,7 +95,7 @@ class MyApp extends ConsumerWidget {
       title: 'CyberGuard',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
     );
   }

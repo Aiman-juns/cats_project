@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../config/supabase_config.dart';
+// import '../../../config/supabase_config.dart';
 
 /// Resource Model
 class Resource {
@@ -34,34 +34,78 @@ class Resource {
   }
 }
 
-/// Fetch all resources from Supabase
-Future<List<Resource>> fetchResources() async {
-  try {
-    final response = await SupabaseConfig.client
-        .from('resources')
-        .select()
-        .order('created_at', ascending: false);
+/// Local hardcoded resources
+final _localResources = [
+  Resource(
+    id: '1',
+    title: 'What is Cyber Security?',
+    category: 'Phishing',
+    content:
+        '''In an era where our reliance on technology is higher than ever, Cybersecurity has emerged as a critical practice for protecting our digital way of life. 
+    
+It is the practice of defending computers, servers, mobile devices, electronic systems, networks, and data from malicious attacks.
 
-    return (response as List<dynamic>)
-        .map((json) => Resource.fromJson(json as Map<String, dynamic>))
-        .toList();
-  } catch (e) {
-    throw Exception('Failed to fetch resources: $e');
-  }
+What will you learn:
+- Concept of Cybersecurity: Understand the core definition of protecting systems.
+- The Rise of Cybercrime: How the internet's growth fueled digital threats.
+- Core Responsibilities: Developing secure software and analyzing evidence.
+- Career Pathways: Roles like Ethical Hackers and Forensic Investigators.''',
+    mediaUrl: 'https://www.youtube.com/watch?v=shQEXpUwaIY',
+    createdAt: DateTime.now().subtract(const Duration(days: 10)),
+    updatedAt: DateTime.now().subtract(const Duration(days: 5)),
+  ),
+  Resource(
+    id: '2',
+    title: 'Password Best Practices',
+    category: 'Authentication',
+    content:
+        '''Learn how to create and manage strong passwords to protect your accounts.
+    
+Key points:
+- Use at least 12 characters
+- Mix uppercase, lowercase, numbers, and symbols
+- Avoid personal information
+- Use unique passwords for each account
+- Consider using a password manager''',
+    mediaUrl: null,
+    createdAt: DateTime.now().subtract(const Duration(days: 8)),
+    updatedAt: DateTime.now().subtract(const Duration(days: 3)),
+  ),
+  Resource(
+    id: '3',
+    title: 'Malware Protection',
+    category: 'Malware',
+    content: '''Understand malware threats and how to protect your systems.
+    
+Topics covered:
+- Types of malware: viruses, trojans, ransomware, spyware
+- How malware spreads
+- Signs of infection
+- Prevention strategies
+- Removal and recovery
+- Best practices for security''',
+    mediaUrl: null,
+    createdAt: DateTime.now().subtract(const Duration(days: 6)),
+    updatedAt: DateTime.now().subtract(const Duration(days: 2)),
+  ),
+];
+
+/// Fetch all resources (simulated with local data)
+Future<List<Resource>> fetchResources() async {
+  // Simulate network delay
+  await Future.delayed(const Duration(milliseconds: 500));
+  return _localResources;
 }
 
-/// Fetch single resource by ID
+/// Fetch single resource by ID (from local data)
 Future<Resource> fetchResourceById(String id) async {
-  try {
-    final response = await SupabaseConfig.client
-        .from('resources')
-        .select()
-        .eq('id', id)
-        .single();
+  // Simulate network delay
+  await Future.delayed(const Duration(milliseconds: 300));
 
-    return Resource.fromJson(response as Map<String, dynamic>);
+  try {
+    return _localResources.firstWhere((resource) => resource.id == id);
   } catch (e) {
-    throw Exception('Failed to fetch resource: $e');
+    throw Exception('Resource with ID $id not found');
   }
 }
 

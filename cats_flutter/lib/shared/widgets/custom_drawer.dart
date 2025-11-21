@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 
 class CustomDrawer extends ConsumerWidget {
   const CustomDrawer({Key? key}) : super(key: key);
@@ -98,6 +99,69 @@ class CustomDrawer extends ConsumerWidget {
               ],
             ),
           ),
+          // Theme Toggle Section
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            child: Consumer(
+              builder: (context, ref, child) {
+                final isDarkMode = ref.watch(themeProvider);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Theme',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.light_mode),
+                            label: const Text('Light'),
+                            onPressed: () {
+                              ref.read(themeProvider.notifier).setLightMode();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: !isDarkMode
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey.shade600,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.dark_mode),
+                            label: const Text('Dark'),
+                            onPressed: () {
+                              ref.read(themeProvider.notifier).setDarkMode();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDarkMode
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey.shade600,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const Divider(),
           // Logout Button
           Padding(
             padding: const EdgeInsets.all(16.0),
