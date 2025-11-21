@@ -18,7 +18,7 @@ class AuthException implements Exception {
 /// Authentication Provider
 /// Manages login, register, logout, and auth state
 class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
-  AuthProvider() : super(const AsyncValue.data(null)) {
+  AuthProvider() : super(const AsyncValue.loading()) {
     _checkAuthState();
   }
 

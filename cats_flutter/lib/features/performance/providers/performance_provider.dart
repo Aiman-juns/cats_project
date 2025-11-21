@@ -102,7 +102,10 @@ final userAchievementsProvider = FutureProvider<List<Achievement>>((ref) async {
 });
 
 /// Module stats provider - Get stats for specific module
-final moduleStatsProvider = FutureProvider.family<ModuleStats, String>((ref, moduleType) async {
+final moduleStatsProvider = FutureProvider.family<ModuleStats, String>((
+  ref,
+  moduleType,
+) async {
   final currentUser = ref.watch(currentUserProvider);
   if (currentUser == null) throw Exception('User not authenticated');
 
@@ -131,9 +134,12 @@ Future<PerformanceStats> fetchUserPerformanceStats(String userId) async {
 
     final progressList = List<Map<String, dynamic>>.from(progressResponse);
     final totalAttempts = progressList.length;
-    final correctAnswers = progressList.where((p) => p['is_correct'] == true).length;
-    final accuracyPercentage =
-        totalAttempts > 0 ? (correctAnswers / totalAttempts * 100) : 0.0;
+    final correctAnswers = progressList
+        .where((p) => p['is_correct'] == true)
+        .length;
+    final accuracyPercentage = totalAttempts > 0
+        ? (correctAnswers / totalAttempts * 100)
+        : 0.0;
     final lastAttemptDate = progressList.isNotEmpty
         ? DateTime.parse(progressList.first['attempt_date'] as String)
         : null;
@@ -163,7 +169,10 @@ Future<PerformanceStats> fetchUserPerformanceStats(String userId) async {
 }
 
 /// Calculate stats for a specific module
-Future<ModuleStats> calculateModuleStats(String userId, String moduleType) async {
+Future<ModuleStats> calculateModuleStats(
+  String userId,
+  String moduleType,
+) async {
   try {
     // Get all questions for the module
     final questionsResponse = await SupabaseConfig.client
@@ -191,12 +200,16 @@ Future<ModuleStats> calculateModuleStats(String userId, String moduleType) async
     final attempts = moduleProgress.length;
     final correct = moduleProgress.where((p) => p['is_correct'] == true).length;
     final totalScore = moduleProgress.fold<int>(
-        0, (sum, p) => sum + (p['score_awarded'] as int? ?? 0));
+      0,
+      (sum, p) => sum + (p['score_awarded'] as int? ?? 0),
+    );
     final accuracy = attempts > 0 ? (correct / attempts * 100) : 0.0;
 
     // Calculate completion percentage
-    final questionsAttempted =
-        moduleProgress.map((p) => p['question_id']).toSet().length;
+    final questionsAttempted = moduleProgress
+        .map((p) => p['question_id'])
+        .toSet()
+        .length;
     final completionPercentage = allQuestions.isNotEmpty
         ? (questionsAttempted / allQuestions.length * 100)
         : 0.0;
@@ -207,9 +220,9 @@ Future<ModuleStats> calculateModuleStats(String userId, String moduleType) async
       highestDifficulty = moduleProgress
           .where((p) => p['is_correct'] == true)
           .fold<int>(0, (max, p) {
-        final difficulty = p['questions']?['difficulty'] as int? ?? 0;
-        return difficulty > max ? difficulty : max;
-      });
+            final difficulty = p['questions']?['difficulty'] as int? ?? 0;
+            return difficulty > max ? difficulty : max;
+          });
     }
 
     return ModuleStats(
@@ -312,12 +325,16 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
         case 'first_steps':
           if (progress.isNotEmpty) {
             isUnlocked = true;
-            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
+            earnedDate = DateTime.parse(
+              progress.first['attempt_date'] as String,
+            );
           }
           break;
 
         case 'quick_learner':
-          final correctCount = progress.where((p) => p['is_correct'] == true).length;
+          final correctCount = progress
+              .where((p) => p['is_correct'] == true)
+              .length;
           if (correctCount >= 10) {
             isUnlocked = true;
             // Find when 10th correct answer was reached
@@ -336,13 +353,12 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
 
         case 'expert':
           // Check if user completed all 3 modules
-          final modules = progress
-              .map((p) => p['module_type'])
-              .toSet()
-              .length;
+          final modules = progress.map((p) => p['module_type']).toSet().length;
           if (modules >= 3) {
             isUnlocked = true;
-            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
+            earnedDate = DateTime.parse(
+              progress.first['attempt_date'] as String,
+            );
           }
           break;
 
@@ -353,13 +369,14 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
                 .where((p) => p['module_type'] == module)
                 .toList();
             if (moduleProgress.isNotEmpty) {
-              final accuracy = moduleProgress
-                  .where((p) => p['is_correct'] == true)
-                  .length /
+              final accuracy =
+                  moduleProgress.where((p) => p['is_correct'] == true).length /
                   moduleProgress.length;
               if (accuracy == 1.0) {
                 isUnlocked = true;
-                earnedDate = DateTime.parse(moduleProgress.first['attempt_date'] as String);
+                earnedDate = DateTime.parse(
+                  moduleProgress.first['attempt_date'] as String,
+                );
                 break;
               }
             }
@@ -376,8 +393,12 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
           // Check if 5 questions answered within 1 minute
           if (progress.length >= 5) {
             for (int i = 4; i < progress.length; i++) {
-              final startTime = DateTime.parse(progress[i]['attempt_date'] as String);
-              final endTime = DateTime.parse(progress[i - 4]['attempt_date'] as String);
+              final startTime = DateTime.parse(
+                progress[i]['attempt_date'] as String,
+              );
+              final endTime = DateTime.parse(
+                progress[i - 4]['attempt_date'] as String,
+              );
               if (endTime.difference(startTime).inSeconds <= 60) {
                 isUnlocked = true;
                 earnedDate = startTime;

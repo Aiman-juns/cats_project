@@ -16,90 +16,90 @@ import '../shared/widgets/app_shell.dart';
 ///
 /// Phase 2: ShellRoute with 5-tab navigation
 class RouterConfig {
+  static final List<RouteBase> routes = [
+    GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) =>
+          MaterialPage(key: state.pageKey, child: const LoginScreen()),
+    ),
+    GoRoute(
+      path: '/register',
+      pageBuilder: (context, state) =>
+          MaterialPage(key: state.pageKey, child: const RegisterScreen()),
+    ),
+    // Phase 2: Shell Route with 5 tabs
+    ShellRoute(
+      pageBuilder: (context, state, child) {
+        return MaterialPage(
+          key: state.pageKey,
+          child: _ShellRouteWidget(child: child),
+        );
+      },
+      routes: [
+        GoRoute(
+          path: '/',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: ResourcesScreen()),
+        ),
+        GoRoute(
+          path: '/training',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: TrainingHubScreen()),
+        ),
+        GoRoute(
+          path: '/assistant',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: AssistantScreen()),
+        ),
+        GoRoute(
+          path: '/performance',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: PerformanceScreen()),
+        ),
+        GoRoute(
+          path: '/news',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: NewsScreen()),
+        ),
+      ],
+    ),
+    // Phase 3: Resource detail route (outside shell)
+    GoRoute(
+      path: '/resource/:id',
+      pageBuilder: (context, state) {
+        final resourceId = state.pathParameters['id']!;
+        return MaterialPage(
+          key: state.pageKey,
+          child: ResourceDetailScreen(resourceId: resourceId),
+        );
+      },
+    ),
+    // Phase 3: News detail route (outside shell)
+    GoRoute(
+      path: '/news/:id',
+      pageBuilder: (context, state) {
+        final newsId = state.pathParameters['id']!;
+        return MaterialPage(
+          key: state.pageKey,
+          child: NewsDetailScreen(newsId: newsId),
+        );
+      },
+    ),
+    // Phase 5: Admin dashboard route (outside shell, admin only)
+    GoRoute(
+      path: '/admin',
+      pageBuilder: (context, state) =>
+          MaterialPage(key: state.pageKey, child: const AdminDashboardScreen()),
+    ),
+  ];
+
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
       // Phase 2: Basic routing - auth will be enhanced with Riverpod
       return null;
     },
-    routes: [
-      GoRoute(
-        path: '/login',
-        pageBuilder: (context, state) =>
-            MaterialPage(key: state.pageKey, child: const LoginScreen()),
-      ),
-      GoRoute(
-        path: '/register',
-        pageBuilder: (context, state) =>
-            MaterialPage(key: state.pageKey, child: const RegisterScreen()),
-      ),
-      // Phase 2: Shell Route with 5 tabs
-      ShellRoute(
-        pageBuilder: (context, state, child) {
-          return MaterialPage(
-            key: state.pageKey,
-            child: _ShellRouteWidget(child: child),
-          );
-        },
-        routes: [
-          GoRoute(
-            path: '/',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: ResourcesScreen()),
-          ),
-          GoRoute(
-            path: '/training',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: TrainingHubScreen()),
-          ),
-          GoRoute(
-            path: '/assistant',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: AssistantScreen()),
-          ),
-          GoRoute(
-            path: '/performance',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: PerformanceScreen()),
-          ),
-          GoRoute(
-            path: '/news',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: NewsScreen()),
-          ),
-        ],
-      ),
-      // Phase 3: Resource detail route (outside shell)
-      GoRoute(
-        path: '/resource/:id',
-        pageBuilder: (context, state) {
-          final resourceId = state.pathParameters['id']!;
-          return MaterialPage(
-            key: state.pageKey,
-            child: ResourceDetailScreen(resourceId: resourceId),
-          );
-        },
-      ),
-      // Phase 3: News detail route (outside shell)
-      GoRoute(
-        path: '/news/:id',
-        pageBuilder: (context, state) {
-          final newsId = state.pathParameters['id']!;
-          return MaterialPage(
-            key: state.pageKey,
-            child: NewsDetailScreen(newsId: newsId),
-          );
-        },
-      ),
-      // Phase 5: Admin dashboard route (outside shell, admin only)
-      GoRoute(
-        path: '/admin',
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const AdminDashboardScreen(),
-        ),
-      ),
-    ],
+    routes: routes,
     errorPageBuilder: (context, state) => MaterialPage(
       child: Scaffold(
         appBar: AppBar(title: const Text('Error')),

@@ -144,9 +144,7 @@ class PerformanceScreen extends ConsumerWidget {
           ],
         ),
       ),
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stackTrace) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -280,9 +278,7 @@ class _ModuleProgressCard extends StatelessWidget {
 class _AchievementsView extends ConsumerWidget {
   final PerformanceStats stats;
 
-  const _AchievementsView({
-    required this.stats,
-  });
+  const _AchievementsView({required this.stats});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -305,9 +301,7 @@ class _AchievementsView extends ConsumerWidget {
 class _AchievementCard extends StatelessWidget {
   final Achievement achievement;
 
-  const _AchievementCard({
-    required this.achievement,
-  });
+  const _AchievementCard({required this.achievement});
 
   IconData _getIconData(IconType type) {
     return switch (type) {
