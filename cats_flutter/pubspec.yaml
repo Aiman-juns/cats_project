@@ -60,6 +60,9 @@ dependencies:
   # Icons
   flutter_launcher_icons: ^0.13.0
 
+  # Video Player
+  youtube_player_flutter: ^9.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
