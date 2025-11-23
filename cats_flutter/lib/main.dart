@@ -38,9 +38,14 @@ class MyApp extends ConsumerWidget {
               return '/login'; // Redirect to login for any other route
             }
 
-            // User is logged in - redirect from login/register to home
+            // User is logged in - redirect from login/register based on role
             if (state.uri.path == '/login' || state.uri.path == '/register') {
-              return '/'; // All users go to home, admin accesses dashboard from drawer
+              // Admin users go to /admin dashboard
+              if (user.role == 'admin') {
+                return '/admin';
+              }
+              // Regular users go to home
+              return '/';
             }
 
             return null; // No redirect needed

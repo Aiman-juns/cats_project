@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../shared/widgets/custom_drawer.dart';
 import 'admin_questions_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_stats_screen.dart';
@@ -78,6 +79,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           ],
         ),
       ),
+      drawer: const CustomDrawer(),
       body: TabBarView(
         controller: _tabController,
         children: const [
