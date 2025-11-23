@@ -1,9 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/training_provider.dart';
 
 class PhishingScreen extends ConsumerStatefulWidget {
-  const PhishingScreen({Key? key}) : super(key: key);
+  final int difficulty;
+
+  const PhishingScreen({
+    Key? key,
+    required this.difficulty,
+  }) : super(key: key);
 
   @override
   ConsumerState<PhishingScreen> createState() => _PhishingScreenState();
@@ -20,45 +26,57 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
   void _handleSwipe({required bool isPhishing}) {
     if (_isAnswered) return;
 
-    final questions = ref.read(phishingQuestionsProvider).value ?? [];
-    if (questions.isEmpty) return;
+    // Get questions from the provider's current value
+    final questionsAsync = ref.read(
+      phishingQuestionsByDifficultyProvider(widget.difficulty),
+    );
+    
+    questionsAsync.when(
+      data: (questions) {
+        if (questions.isEmpty || _currentIndex >= questions.length) return;
 
-    final question = questions[_currentIndex];
-    final correct =
-        question.correctAnswer.toLowerCase() ==
-        (isPhishing ? 'phishing' : 'safe');
+        final question = questions[_currentIndex];
+        final correct =
+            question.correctAnswer.toLowerCase() ==
+            (isPhishing ? 'phishing' : 'safe');
 
-    setState(() {
-      _isAnswered = true;
-      _isCorrect = correct;
-      _feedbackMessage = correct
-          ? '✓ Correct! That is ${isPhishing ? 'PHISHING' : 'SAFE'}.'
-          : '✗ Incorrect! It is actually ${question.correctAnswer}.';
-
-      if (correct) {
-        _score +=
-            (6 - question.difficulty) * 10; // More points for harder difficulty
-      }
-    });
-
-    // Move to next question after delay
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
         setState(() {
-          _isAnswered = false;
-          _currentIndex++;
+          _isAnswered = true;
+          _isCorrect = correct;
+          _feedbackMessage = correct
+              ? '✓ Correct! That is ${isPhishing ? 'PHISHING' : 'SAFE'}.'
+              : '✗ Incorrect! It is actually ${question.correctAnswer}.';
+
+          if (correct) {
+            _score +=
+                (6 - question.difficulty) * 10; // More points for harder difficulty
+          }
         });
-      }
-    });
+
+        // Move to next question after delay
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() {
+              _isAnswered = false;
+              _currentIndex++;
+            });
+          }
+        });
+      },
+      loading: () {},
+      error: (error, stack) {},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(phishingQuestionsProvider);
+    final questionsAsync = ref.watch(
+      phishingQuestionsByDifficultyProvider(widget.difficulty),
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Phishing Detection'),
+        title: Text('Phishing Detection - Level ${widget.difficulty}'),
         centerTitle: true,
         elevation: 0,
         actions: [
@@ -85,7 +103,9 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
               Text('Error loading questions: $error'),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.refresh(phishingQuestionsProvider),
+                onPressed: () => ref.refresh(
+                  phishingQuestionsByDifficultyProvider(widget.difficulty),
+                ),
                 child: const Text('Retry'),
               ),
             ],
@@ -122,7 +142,7 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      5,
+                      3,
                       (i) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: Container(
@@ -139,7 +159,7 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // Question card
+                  // Email simulation card
                   GestureDetector(
                     onHorizontalDragEnd: (details) {
                       if (details.primaryVelocity! > 0) {
@@ -150,47 +170,7 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
                         _handleSwipe(isPhishing: false);
                       }
                     },
-                    child: Card(
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            if (question.mediaUrl != null)
-                              Column(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      question.mediaUrl!,
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Container(
-                                              height: 200,
-                                              color: Colors.grey.shade200,
-                                              child: const Icon(
-                                                Icons.image_not_supported,
-                                              ),
-                                            );
-                                          },
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                              ),
-                            Text(
-                              question.content,
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.w500),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: EmailSimulationCard(question: question),
                   ),
                   const SizedBox(height: 32),
                   // Feedback
@@ -339,6 +319,221 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
             child: const Text('Back to Training Hub'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Widget that displays a realistic email simulation card
+class EmailSimulationCard extends StatelessWidget {
+  final Question question;
+
+  const EmailSimulationCard({
+    Key? key,
+    required this.question,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Try to parse content as JSON
+    Map<String, dynamic>? emailData;
+    bool isJsonFormat = false;
+    
+    try {
+      if (question.content.isNotEmpty) {
+        emailData = jsonDecode(question.content) as Map<String, dynamic>;
+        // Check if it has the expected email structure
+        if (emailData.containsKey('senderName') || 
+            emailData.containsKey('senderEmail') || 
+            emailData.containsKey('subject') || 
+            emailData.containsKey('body')) {
+          isJsonFormat = true;
+        }
+      }
+    } catch (e) {
+      // Not JSON format, will use fallback display
+      isJsonFormat = false;
+    }
+
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isJsonFormat && emailData != null) ...[
+                // Email Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // CircleAvatar with first letter
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.blue.shade600,
+                        child: Text(
+                          (emailData['senderName'] as String? ?? '?')
+                              .isNotEmpty
+                              ? (emailData['senderName'] as String)[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Sender name and email
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              emailData['senderName'] as String? ?? 'Unknown Sender',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              emailData['senderEmail'] as String? ?? '',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Timestamp (mock)
+                      Text(
+                        'Now',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade500,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Divider
+                Divider(height: 1, color: Colors.grey.shade200),
+                // Subject Line
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text(
+                    emailData['subject'] as String? ?? 'No Subject',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                  ),
+                ),
+                // Email Body
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        emailData['body'] as String? ?? '',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                      ),
+                      // Media URL image if present
+                      if (question.mediaUrl != null) ...[
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            question.mediaUrl!,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 150,
+                                color: Colors.grey.shade200,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Fallback: Display raw content (legacy format)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      if (question.mediaUrl != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            question.mediaUrl!,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 200,
+                                color: Colors.grey.shade200,
+                                child: const Icon(
+                                  Icons.image_not_supported,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Text(
+                        question.content,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

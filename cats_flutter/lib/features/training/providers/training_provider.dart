@@ -5,7 +5,7 @@ import '../../../config/supabase_config.dart';
 class Question {
   final String id;
   final String moduleType; // 'phishing', 'password', 'attack'
-  final int difficulty; // 1-5
+  final int difficulty; // 1-3
   final String content;
   final String correctAnswer;
   final String explanation;
@@ -92,6 +92,27 @@ Future<List<Question>> fetchQuestionsByModule(String moduleType) async {
   }
 }
 
+/// Fetch questions by module type and difficulty level
+Future<List<Question>> fetchQuestionsByModuleAndDifficulty(
+  String moduleType,
+  int difficulty,
+) async {
+  try {
+    final response = await SupabaseConfig.client
+        .from('questions')
+        .select()
+        .eq('module_type', moduleType)
+        .eq('difficulty', difficulty)
+        .order('created_at', ascending: true);
+
+    return (response as List<dynamic>)
+        .map((json) => Question.fromJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    throw Exception('Failed to fetch questions: $e');
+  }
+}
+
 /// Record user progress
 Future<void> recordProgress(UserProgress progress) async {
   try {
@@ -133,14 +154,32 @@ final phishingQuestionsProvider = FutureProvider<List<Question>>((ref) async {
   return fetchQuestionsByModule('phishing');
 });
 
+/// Phishing module questions filtered by difficulty
+final phishingQuestionsByDifficultyProvider =
+    FutureProvider.family<List<Question>, int>((ref, difficulty) async {
+  return fetchQuestionsByModuleAndDifficulty('phishing', difficulty);
+});
+
 /// Password module questions
 final passwordQuestionsProvider = FutureProvider<List<Question>>((ref) async {
   return fetchQuestionsByModule('password');
 });
 
+/// Password module questions filtered by difficulty
+final passwordQuestionsByDifficultyProvider =
+    FutureProvider.family<List<Question>, int>((ref, difficulty) async {
+  return fetchQuestionsByModuleAndDifficulty('password', difficulty);
+});
+
 /// Attack module questions
 final attackQuestionsProvider = FutureProvider<List<Question>>((ref) async {
   return fetchQuestionsByModule('attack');
+});
+
+/// Attack module questions filtered by difficulty
+final attackQuestionsByDifficultyProvider =
+    FutureProvider.family<List<Question>, int>((ref, difficulty) async {
+  return fetchQuestionsByModuleAndDifficulty('attack', difficulty);
 });
 
 /// User progress for phishing module

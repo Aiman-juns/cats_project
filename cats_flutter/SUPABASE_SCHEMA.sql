@@ -47,7 +47,7 @@ CREATE TABLE public.resources (
 CREATE TABLE public.questions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     module_type module_type NOT NULL,
-    difficulty INTEGER NOT NULL DEFAULT 1 CHECK (difficulty >= 1 AND difficulty <= 5),
+    difficulty INTEGER NOT NULL DEFAULT 1 CHECK (difficulty >= 1 AND difficulty <= 3),
     content TEXT NOT NULL,
     correct_answer TEXT NOT NULL,
     explanation TEXT NOT NULL,

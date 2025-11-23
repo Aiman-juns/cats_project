@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PasswordDojoScreen extends ConsumerStatefulWidget {
-  const PasswordDojoScreen({Key? key}) : super(key: key);
+  final int difficulty;
+
+  const PasswordDojoScreen({
+    Key? key,
+    required this.difficulty,
+  }) : super(key: key);
 
   @override
   ConsumerState<PasswordDojoScreen> createState() => _PasswordDojoScreenState();
@@ -56,6 +61,7 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
 
     // Calculate score based on difficulty and password length
     int score = 50; // Base score
+    score += (widget.difficulty * 20); // Bonus based on selected difficulty
     score += (_currentLevel * 20); // Bonus per level
     if (_passwordController.text.length > 12) score += 20; // Extra length bonus
     if (_validationChecks.every((c) => c)) score += 30; // Perfection bonus
@@ -138,7 +144,7 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Password Dojo'),
+        title: Text('Password Dojo - Difficulty ${widget.difficulty}'),
         centerTitle: true,
         elevation: 0,
         actions: [

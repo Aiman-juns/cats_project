@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/training_provider.dart';
 
 class CyberAttackScreen extends ConsumerStatefulWidget {
-  const CyberAttackScreen({Key? key}) : super(key: key);
+  final int difficulty;
+
+  const CyberAttackScreen({
+    Key? key,
+    required this.difficulty,
+  }) : super(key: key);
 
   @override
   ConsumerState<CyberAttackScreen> createState() => _CyberAttackScreenState();
@@ -20,25 +25,34 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
   void _handleAnswer(String answer) {
     if (_isAnswered) return;
 
-    final questions = ref.read(attackQuestionsProvider).value ?? [];
-    if (questions.isEmpty) return;
+    final questionsAsync = ref.read(
+      attackQuestionsByDifficultyProvider(widget.difficulty),
+    );
+    
+    questionsAsync.when(
+      data: (questions) {
+        if (questions.isEmpty || _currentIndex >= questions.length) return;
 
-    final question = questions[_currentIndex];
-    final correct =
-        question.correctAnswer.toLowerCase() == answer.toLowerCase();
+        final question = questions[_currentIndex];
+        final correct =
+            question.correctAnswer.toLowerCase() == answer.toLowerCase();
 
-    setState(() {
-      _isAnswered = true;
-      _isCorrect = correct;
-      _selectedAnswer = answer;
-      _attemptCount++;
+        setState(() {
+          _isAnswered = true;
+          _isCorrect = correct;
+          _selectedAnswer = answer;
+          _attemptCount++;
 
-      if (correct) {
-        // Score based on difficulty and attempts
-        int points = ((6 - question.difficulty) * 10) ~/ _attemptCount;
-        _score += points;
-      }
-    });
+          if (correct) {
+            // Score based on difficulty and attempts
+            int points = ((6 - question.difficulty) * 10) ~/ _attemptCount;
+            _score += points;
+          }
+        });
+      },
+      loading: () {},
+      error: (error, stack) {},
+    );
   }
 
   void _nextQuestion() {
@@ -52,11 +66,13 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questionsAsync = ref.watch(attackQuestionsProvider);
+    final questionsAsync = ref.watch(
+      attackQuestionsByDifficultyProvider(widget.difficulty),
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cyber Attack Analyst'),
+        title: Text('Cyber Attack Analyst - Level ${widget.difficulty}'),
         centerTitle: true,
         elevation: 0,
         actions: [
@@ -83,7 +99,9 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
               Text('Error loading questions: $error'),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.refresh(attackQuestionsProvider),
+                onPressed: () => ref.refresh(
+                  attackQuestionsByDifficultyProvider(widget.difficulty),
+                ),
                 child: const Text('Retry'),
               ),
             ],
@@ -126,7 +144,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                   // Difficulty indicator
                   Row(
                     children: List.generate(
-                      5,
+                      3,
                       (i) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: Container(

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
@@ -267,18 +268,22 @@ class _QuestionDialogContent extends ConsumerStatefulWidget {
 
 class _QuestionDialogContentState
     extends ConsumerState<_QuestionDialogContent> {
-  late TextEditingController contentController;
+  late TextEditingController contentController; // Used for body in phishing, content in others
+  late TextEditingController senderNameController;
+  late TextEditingController senderEmailController;
+  late TextEditingController subjectController;
   late TextEditingController answerController;
   late TextEditingController explanationController;
   late TextEditingController mediaUrlController;
   int difficulty = 1;
+  
+  bool get isPhishingModule => widget.moduleType == 'phishing';
 
   @override
   void initState() {
     super.initState();
-    contentController = TextEditingController(
-      text: widget.question?.content ?? '',
-    );
+    
+    // Initialize answer, explanation, and mediaUrl controllers (same for all modules)
     answerController = TextEditingController(
       text: widget.question?.correctAnswer ?? '',
     );
@@ -289,15 +294,67 @@ class _QuestionDialogContentState
       text: widget.question?.mediaUrl ?? '',
     );
     difficulty = widget.question?.difficulty ?? 1;
+    
+    // Handle content field based on module type
+    if (isPhishingModule) {
+      // For phishing: parse JSON and populate separate fields
+      Map<String, dynamic> emailData = {};
+      if (widget.question?.content != null && widget.question!.content.isNotEmpty) {
+        try {
+          emailData = jsonDecode(widget.question!.content) as Map<String, dynamic>;
+        } catch (e) {
+          // If parsing fails, use empty values
+        }
+      }
+      
+      senderNameController = TextEditingController(
+        text: emailData['senderName'] ?? '',
+      );
+      senderEmailController = TextEditingController(
+        text: emailData['senderEmail'] ?? '',
+      );
+      subjectController = TextEditingController(
+        text: emailData['subject'] ?? '',
+      );
+      contentController = TextEditingController(
+        text: emailData['body'] ?? '',
+      );
+    } else {
+      // For other modules: use content as plain text
+      contentController = TextEditingController(
+        text: widget.question?.content ?? '',
+      );
+      senderNameController = TextEditingController();
+      senderEmailController = TextEditingController();
+      subjectController = TextEditingController();
+    }
   }
 
   @override
   void dispose() {
     contentController.dispose();
+    senderNameController.dispose();
+    senderEmailController.dispose();
+    subjectController.dispose();
     answerController.dispose();
     explanationController.dispose();
     mediaUrlController.dispose();
     super.dispose();
+  }
+  
+  String _getContentValue() {
+    if (isPhishingModule) {
+      // Combine phishing fields into JSON
+      final emailData = {
+        'senderName': senderNameController.text,
+        'senderEmail': senderEmailController.text,
+        'subject': subjectController.text,
+        'body': contentController.text,
+      };
+      return jsonEncode(emailData);
+    } else {
+      return contentController.text;
+    }
   }
 
   @override
@@ -310,11 +367,66 @@ class _QuestionDialogContentState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: contentController,
-              decoration: const InputDecoration(labelText: 'Question Content'),
-              maxLines: 3,
-            ),
+            // Conditional fields based on module type
+            if (isPhishingModule) ...[
+              // Phishing module: 4 separate fields
+              TextField(
+                controller: senderNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Sender Name',
+                  hintText: 'e.g., IT Support',
+                ),
+                onChanged: (_) => setState(() {}), // Trigger preview update
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: senderEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'Sender Email',
+                  hintText: 'e.g., support@company-security.com',
+                ),
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (_) => setState(() {}), // Trigger preview update
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: subjectController,
+                decoration: const InputDecoration(
+                  labelText: 'Subject',
+                  hintText: 'e.g., Urgent: Password Expiry',
+                ),
+                onChanged: (_) => setState(() {}), // Trigger preview update
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(
+                  labelText: 'Email Body',
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 6,
+                minLines: 4,
+                onChanged: (_) => setState(() {}), // Trigger preview update
+              ),
+              const SizedBox(height: 16),
+              // Preview Card
+              _EmailPreviewCard(
+                senderName: senderNameController.text,
+                senderEmail: senderEmailController.text,
+                subject: subjectController.text,
+                body: contentController.text,
+                mediaUrl: mediaUrlController.text.isNotEmpty 
+                    ? mediaUrlController.text 
+                    : null,
+              ),
+            ] else ...[
+              // Other modules: single content field
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(labelText: 'Question Content'),
+                maxLines: 3,
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: answerController,
@@ -332,13 +444,16 @@ class _QuestionDialogContentState
               decoration: const InputDecoration(
                 labelText: 'Media URL (optional)',
               ),
+              onChanged: (_) {
+                if (isPhishingModule) setState(() {}); // Trigger preview update
+              },
             ),
             const SizedBox(height: 16),
             Slider(
               value: difficulty.toDouble(),
               min: 1,
-              max: 5,
-              divisions: 4,
+              max: 3,
+              divisions: 2,
               label: 'Difficulty: $difficulty',
               onChanged: (value) => setState(() => difficulty = value.toInt()),
             ),
@@ -353,13 +468,15 @@ class _QuestionDialogContentState
         ElevatedButton(
           onPressed: () async {
             try {
+              final content = _getContentValue();
+              
               if (widget.question == null) {
                 await ref
                     .read(adminProvider.notifier)
                     .createQuestion(
                       moduleType: widget.moduleType,
                       difficulty: difficulty,
-                      content: contentController.text,
+                      content: content,
                       correctAnswer: answerController.text,
                       explanation: explanationController.text,
                       mediaUrl: mediaUrlController.text.isEmpty
@@ -372,7 +489,7 @@ class _QuestionDialogContentState
                     .updateQuestion(
                       questionId: widget.question!.id,
                       difficulty: difficulty,
-                      content: contentController.text,
+                      content: content,
                       correctAnswer: answerController.text,
                       explanation: explanationController.text,
                       mediaUrl: mediaUrlController.text.isEmpty
@@ -390,6 +507,7 @@ class _QuestionDialogContentState
                     ),
                   ),
                 );
+                Navigator.pop(context);
               }
             } catch (e) {
               if (mounted) {
@@ -402,6 +520,130 @@ class _QuestionDialogContentState
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+}
+
+/// Preview card widget for phishing email questions
+class _EmailPreviewCard extends StatelessWidget {
+  final String senderName;
+  final String senderEmail;
+  final String subject;
+  final String body;
+  final String? mediaUrl;
+
+  const _EmailPreviewCard({
+    required this.senderName,
+    required this.senderEmail,
+    required this.subject,
+    required this.body,
+    this.mediaUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Preview',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            // Email Header
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.blue.shade600,
+                  child: Text(
+                    senderName.isNotEmpty
+                        ? senderName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        senderName.isNotEmpty ? senderName : 'Sender Name',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        senderEmail.isNotEmpty ? senderEmail : 'sender@email.com',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade600,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            // Subject
+            if (subject.isNotEmpty)
+              Text(
+                subject,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            if (subject.isEmpty)
+              Text(
+                'Subject',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade400,
+                    ),
+              ),
+            const SizedBox(height: 8),
+            // Body
+            Text(
+              body.isNotEmpty ? body : 'Email body content...',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: body.isEmpty ? Colors.grey.shade400 : null,
+                  ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            // Media preview
+            if (mediaUrl != null && mediaUrl!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Center(
+                  child: Icon(Icons.image, color: Colors.grey),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
