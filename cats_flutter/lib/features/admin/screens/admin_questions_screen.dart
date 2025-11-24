@@ -268,7 +268,8 @@ class _QuestionDialogContent extends ConsumerStatefulWidget {
 
 class _QuestionDialogContentState
     extends ConsumerState<_QuestionDialogContent> {
-  late TextEditingController contentController; // Used for body in phishing, content in others
+  late TextEditingController
+  contentController; // Used for body in phishing, content in others
   late TextEditingController senderNameController;
   late TextEditingController senderEmailController;
   late TextEditingController subjectController;
@@ -276,17 +277,24 @@ class _QuestionDialogContentState
   late TextEditingController explanationController;
   late TextEditingController mediaUrlController;
   int difficulty = 1;
-  
+  String? selectedPhishingAnswer; // 'phishing' or 'safe'
+
   bool get isPhishingModule => widget.moduleType == 'phishing';
 
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize answer, explanation, and mediaUrl controllers (same for all modules)
     answerController = TextEditingController(
       text: widget.question?.correctAnswer ?? '',
     );
+
+    // For phishing module, extract the answer (phishing/safe) from correctAnswer
+    if (isPhishingModule && widget.question != null) {
+      selectedPhishingAnswer = widget.question!.correctAnswer.toLowerCase();
+    }
+
     explanationController = TextEditingController(
       text: widget.question?.explanation ?? '',
     );
@@ -294,19 +302,21 @@ class _QuestionDialogContentState
       text: widget.question?.mediaUrl ?? '',
     );
     difficulty = widget.question?.difficulty ?? 1;
-    
+
     // Handle content field based on module type
     if (isPhishingModule) {
       // For phishing: parse JSON and populate separate fields
       Map<String, dynamic> emailData = {};
-      if (widget.question?.content != null && widget.question!.content.isNotEmpty) {
+      if (widget.question?.content != null &&
+          widget.question!.content.isNotEmpty) {
         try {
-          emailData = jsonDecode(widget.question!.content) as Map<String, dynamic>;
+          emailData =
+              jsonDecode(widget.question!.content) as Map<String, dynamic>;
         } catch (e) {
           // If parsing fails, use empty values
         }
       }
-      
+
       senderNameController = TextEditingController(
         text: emailData['senderName'] ?? '',
       );
@@ -316,9 +326,7 @@ class _QuestionDialogContentState
       subjectController = TextEditingController(
         text: emailData['subject'] ?? '',
       );
-      contentController = TextEditingController(
-        text: emailData['body'] ?? '',
-      );
+      contentController = TextEditingController(text: emailData['body'] ?? '');
     } else {
       // For other modules: use content as plain text
       contentController = TextEditingController(
@@ -341,7 +349,7 @@ class _QuestionDialogContentState
     mediaUrlController.dispose();
     super.dispose();
   }
-  
+
   String _getContentValue() {
     if (isPhishingModule) {
       // Combine phishing fields into JSON
@@ -415,23 +423,71 @@ class _QuestionDialogContentState
                 senderEmail: senderEmailController.text,
                 subject: subjectController.text,
                 body: contentController.text,
-                mediaUrl: mediaUrlController.text.isNotEmpty 
-                    ? mediaUrlController.text 
+                mediaUrl: mediaUrlController.text.isNotEmpty
+                    ? mediaUrlController.text
                     : null,
               ),
             ] else ...[
               // Other modules: single content field
               TextField(
                 controller: contentController,
-                decoration: const InputDecoration(labelText: 'Question Content'),
+                decoration: const InputDecoration(
+                  labelText: 'Question Content',
+                ),
                 maxLines: 3,
               ),
             ],
             const SizedBox(height: 16),
-            TextField(
-              controller: answerController,
-              decoration: const InputDecoration(labelText: 'Correct Answer'),
-            ),
+            // Answer field - different for phishing vs other modules
+            if (isPhishingModule) ...[
+              Text(
+                'Correct Answer',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.warning),
+                      label: const Text('Phishing'),
+                      onPressed: () {
+                        setState(() => selectedPhishingAnswer = 'phishing');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedPhishingAnswer == 'phishing'
+                            ? Colors.red.shade600
+                            : Colors.grey.shade400,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.shield),
+                      label: const Text('Safe'),
+                      onPressed: () {
+                        setState(() => selectedPhishingAnswer = 'safe');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedPhishingAnswer == 'safe'
+                            ? Colors.green.shade600
+                            : Colors.grey.shade400,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              TextField(
+                controller: answerController,
+                decoration: const InputDecoration(labelText: 'Correct Answer'),
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: explanationController,
@@ -467,9 +523,22 @@ class _QuestionDialogContentState
         ),
         ElevatedButton(
           onPressed: () async {
+            // Validate that phishing answer is selected for phishing module
+            if (isPhishingModule && selectedPhishingAnswer == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please select Phishing or Safe')),
+              );
+              return;
+            }
+
             try {
               final content = _getContentValue();
-              
+
+              // Use selected answer for phishing, text input for others
+              final correctAnswer = isPhishingModule
+                  ? selectedPhishingAnswer!
+                  : answerController.text;
+
               if (widget.question == null) {
                 await ref
                     .read(adminProvider.notifier)
@@ -477,7 +546,7 @@ class _QuestionDialogContentState
                       moduleType: widget.moduleType,
                       difficulty: difficulty,
                       content: content,
-                      correctAnswer: answerController.text,
+                      correctAnswer: correctAnswer,
                       explanation: explanationController.text,
                       mediaUrl: mediaUrlController.text.isEmpty
                           ? null
@@ -490,7 +559,7 @@ class _QuestionDialogContentState
                       questionId: widget.question!.id,
                       difficulty: difficulty,
                       content: content,
-                      correctAnswer: answerController.text,
+                      correctAnswer: correctAnswer,
                       explanation: explanationController.text,
                       mediaUrl: mediaUrlController.text.isEmpty
                           ? null
@@ -544,9 +613,7 @@ class _EmailPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -554,9 +621,9 @@ class _EmailPreviewCard extends StatelessWidget {
           children: [
             Text(
               'Preview',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             // Email Header
@@ -566,9 +633,7 @@ class _EmailPreviewCard extends StatelessWidget {
                   radius: 16,
                   backgroundColor: Colors.blue.shade600,
                   child: Text(
-                    senderName.isNotEmpty
-                        ? senderName[0].toUpperCase()
-                        : '?',
+                    senderName.isNotEmpty ? senderName[0].toUpperCase() : '?',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -583,17 +648,18 @@ class _EmailPreviewCard extends StatelessWidget {
                     children: [
                       Text(
                         senderName.isNotEmpty ? senderName : 'Sender Name',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
-                        senderEmail.isNotEmpty ? senderEmail : 'sender@email.com',
+                        senderEmail.isNotEmpty
+                            ? senderEmail
+                            : 'sender@email.com',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade600,
-                              fontSize: 11,
-                            ),
+                          color: Colors.grey.shade600,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -605,25 +671,25 @@ class _EmailPreviewCard extends StatelessWidget {
             if (subject.isNotEmpty)
               Text(
                 subject,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
             if (subject.isEmpty)
               Text(
                 'Subject',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade400,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade400,
+                ),
               ),
             const SizedBox(height: 8),
             // Body
             Text(
               body.isNotEmpty ? body : 'Email body content...',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: body.isEmpty ? Colors.grey.shade400 : null,
-                  ),
+                color: body.isEmpty ? Colors.grey.shade400 : null,
+              ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
