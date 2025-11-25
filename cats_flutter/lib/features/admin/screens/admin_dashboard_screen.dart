@@ -5,6 +5,7 @@ import '../../../shared/widgets/custom_drawer.dart';
 import 'admin_questions_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_stats_screen.dart';
+import 'admin_password_dojo_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -21,7 +22,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -76,16 +77,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
             Tab(icon: Icon(Icons.help), text: 'Questions'),
             Tab(icon: Icon(Icons.people), text: 'Users'),
             Tab(icon: Icon(Icons.bar_chart), text: 'Statistics'),
+            Tab(icon: Icon(Icons.lock), text: 'Password Dojo'),
           ],
         ),
       ),
       drawer: const CustomDrawer(),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          AdminQuestionsScreen(),
-          AdminUsersScreen(),
-          AdminStatsScreen(),
+        children: [
+          const AdminQuestionsScreen(),
+          const AdminUsersScreen(),
+          const AdminStatsScreen(),
+          const AdminPasswordDojoScreen(),
         ],
       ),
     );
