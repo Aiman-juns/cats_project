@@ -279,7 +279,25 @@ class _QuestionDialogContentState
   int difficulty = 1;
   String? selectedPhishingAnswer; // 'phishing' or 'safe'
 
+  // Password module specific
+  int minLength = 8;
+  bool requireUppercase = true;
+  bool requireLowercase = true;
+  bool requireNumbers = true;
+  bool requireSpecial = true;
+
   bool get isPhishingModule => widget.moduleType == 'phishing';
+  bool get isPasswordModule => widget.moduleType == 'password';
+  bool get isAttackModule => widget.moduleType == 'attack';
+
+  // Attack module specific
+  late TextEditingController descriptionController;
+  late TextEditingController optionAController;
+  late TextEditingController optionBController;
+  late TextEditingController optionCController;
+  late TextEditingController optionDController;
+  String mediaType = 'none'; // 'none', 'image', 'youtube', 'video'
+  String? selectedCorrectOption; // 'A', 'B', 'C', or 'D'
 
   @override
   void initState() {
@@ -327,6 +345,76 @@ class _QuestionDialogContentState
         text: emailData['subject'] ?? '',
       );
       contentController = TextEditingController(text: emailData['body'] ?? '');
+    } else if (isPasswordModule) {
+      // For password module: parse JSON requirements
+      Map<String, dynamic> passwordData = {};
+      if (widget.question?.content != null &&
+          widget.question!.content.isNotEmpty) {
+        try {
+          passwordData =
+              jsonDecode(widget.question!.content) as Map<String, dynamic>;
+        } catch (e) {
+          // If parsing fails, use defaults
+        }
+      }
+
+      minLength = passwordData['minLength'] ?? 8;
+      requireUppercase = passwordData['uppercase'] ?? true;
+      requireLowercase = passwordData['lowercase'] ?? true;
+      requireNumbers = passwordData['numbers'] ?? true;
+      requireSpecial = passwordData['special'] ?? true;
+
+      // These controllers aren't used for password module but initialize them anyway
+      contentController = TextEditingController();
+      senderNameController = TextEditingController();
+      senderEmailController = TextEditingController();
+      subjectController = TextEditingController();
+    } else if (isAttackModule) {
+      // For attack module: parse JSON with description and options
+      Map<String, dynamic> attackData = {};
+      if (widget.question?.content != null &&
+          widget.question!.content.isNotEmpty) {
+        try {
+          attackData =
+              jsonDecode(widget.question!.content) as Map<String, dynamic>;
+        } catch (e) {
+          // If parsing fails, use defaults
+        }
+      }
+
+      descriptionController = TextEditingController(
+        text: attackData['description'] ?? '',
+      );
+      mediaType = attackData['mediaType'] ?? 'none';
+
+      final options = attackData['options'] as List<dynamic>? ?? [];
+      optionAController = TextEditingController(
+        text: options.isNotEmpty ? options[0] ?? '' : '',
+      );
+      optionBController = TextEditingController(
+        text: options.length > 1 ? options[1] ?? '' : '',
+      );
+      optionCController = TextEditingController(
+        text: options.length > 2 ? options[2] ?? '' : '',
+      );
+      optionDController = TextEditingController(
+        text: options.length > 3 ? options[3] ?? '' : '',
+      );
+
+      // Derive selected correct option from correctAnswer field
+      if (widget.question != null) {
+        final answer = widget.question!.correctAnswer.toLowerCase();
+        if (answer.contains('a') || options.isNotEmpty && options[0] == widget.question!.correctAnswer) selectedCorrectOption = 'A';
+        else if (answer.contains('b') || options.length > 1 && options[1] == widget.question!.correctAnswer) selectedCorrectOption = 'B';
+        else if (answer.contains('c') || options.length > 2 && options[2] == widget.question!.correctAnswer) selectedCorrectOption = 'C';
+        else if (answer.contains('d') || options.length > 3 && options[3] == widget.question!.correctAnswer) selectedCorrectOption = 'D';
+      }
+
+      // Initialize unused controllers
+      contentController = TextEditingController();
+      senderNameController = TextEditingController();
+      senderEmailController = TextEditingController();
+      subjectController = TextEditingController();
     } else {
       // For other modules: use content as plain text
       contentController = TextEditingController(
@@ -335,6 +423,13 @@ class _QuestionDialogContentState
       senderNameController = TextEditingController();
       senderEmailController = TextEditingController();
       subjectController = TextEditingController();
+
+      // Initialize attack controllers
+      descriptionController = TextEditingController();
+      optionAController = TextEditingController();
+      optionBController = TextEditingController();
+      optionCController = TextEditingController();
+      optionDController = TextEditingController();
     }
   }
 
@@ -347,6 +442,11 @@ class _QuestionDialogContentState
     answerController.dispose();
     explanationController.dispose();
     mediaUrlController.dispose();
+    descriptionController.dispose();
+    optionAController.dispose();
+    optionBController.dispose();
+    optionCController.dispose();
+    optionDController.dispose();
     super.dispose();
   }
 
@@ -360,6 +460,29 @@ class _QuestionDialogContentState
         'body': contentController.text,
       };
       return jsonEncode(emailData);
+    } else if (isPasswordModule) {
+      // Combine password requirements into JSON
+      final passwordData = {
+        'minLength': minLength,
+        'uppercase': requireUppercase,
+        'lowercase': requireLowercase,
+        'numbers': requireNumbers,
+        'special': requireSpecial,
+      };
+      return jsonEncode(passwordData);
+    } else if (isAttackModule) {
+      // Combine attack module fields into JSON
+      final attackData = {
+        'description': descriptionController.text,
+        'mediaType': mediaType,
+        'options': [
+          optionAController.text,
+          optionBController.text,
+          optionCController.text,
+          optionDController.text,
+        ],
+      };
+      return jsonEncode(attackData);
     } else {
       return contentController.text;
     }
@@ -427,6 +550,169 @@ class _QuestionDialogContentState
                     ? mediaUrlController.text
                     : null,
               ),
+            ] else if (isPasswordModule) ...[
+              // Password module: configuration form
+              Text(
+                'Password Requirements Configuration',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Minimum Length: $minLength',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Slider(
+                value: minLength.toDouble(),
+                min: 6,
+                max: 20,
+                divisions: 14,
+                label: minLength.toString(),
+                onChanged: (value) {
+                  setState(() => minLength = value.toInt());
+                },
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                title: const Text('Require Uppercase (A-Z)'),
+                value: requireUppercase,
+                onChanged: (value) {
+                  setState(() => requireUppercase = value ?? true);
+                },
+                dense: true,
+              ),
+              CheckboxListTile(
+                title: const Text('Require Lowercase (a-z)'),
+                value: requireLowercase,
+                onChanged: (value) {
+                  setState(() => requireLowercase = value ?? true);
+                },
+                dense: true,
+              ),
+              CheckboxListTile(
+                title: const Text('Require Numbers (0-9)'),
+                value: requireNumbers,
+                onChanged: (value) {
+                  setState(() => requireNumbers = value ?? true);
+                },
+                dense: true,
+              ),
+              CheckboxListTile(
+                title: const Text('Require Special Characters (!@#...)'),
+                value: requireSpecial,
+                onChanged: (value) {
+                  setState(() => requireSpecial = value ?? true);
+                },
+                dense: true,
+              ),
+            ] else if (isAttackModule) ...[
+              // Attack module: multimedia quiz configuration
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Scenario Description',
+                  hintText: 'Describe the cyberattack scenario',
+                ),
+                maxLines: 3,
+                minLines: 2,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Media Type',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButton<String>(
+                value: mediaType,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'none', child: Text('None (Text Only)')),
+                  DropdownMenuItem(value: 'image', child: Text('Image')),
+                  DropdownMenuItem(value: 'youtube', child: Text('YouTube Video')),
+                  DropdownMenuItem(value: 'video', child: Text('MP4 Video')),
+                ],
+                onChanged: (value) {
+                  setState(() => mediaType = value ?? 'none');
+                },
+              ),
+              if (mediaType != 'none') ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: mediaUrlController,
+                  decoration: InputDecoration(
+                    labelText: mediaType == 'youtube'
+                        ? 'YouTube Video URL or ID'
+                        : mediaType == 'video'
+                            ? 'MP4 Video URL'
+                            : 'Image URL',
+                    hintText: mediaType == 'youtube'
+                        ? 'e.g., https://youtube.com/watch?v=...'
+                        : 'e.g., https://...',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Text(
+                'Answer Options',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: optionAController,
+                decoration: const InputDecoration(
+                  labelText: 'Option A',
+                  prefixText: 'A) ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: optionBController,
+                decoration: const InputDecoration(
+                  labelText: 'Option B',
+                  prefixText: 'B) ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: optionCController,
+                decoration: const InputDecoration(
+                  labelText: 'Option C',
+                  prefixText: 'C) ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: optionDController,
+                decoration: const InputDecoration(
+                  labelText: 'Option D',
+                  prefixText: 'D) ',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Correct Answer',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                children: ['A', 'B', 'C', 'D'].map((option) {
+                  return ChoiceChip(
+                    label: Text(option),
+                    selected: selectedCorrectOption == option,
+                    onSelected: (selected) {
+                      setState(() => selectedCorrectOption = option);
+                    },
+                  );
+                }).toList(),
+              ),
             ] else ...[
               // Other modules: single content field
               TextField(
@@ -482,7 +768,7 @@ class _QuestionDialogContentState
                   ),
                 ],
               ),
-            ] else ...[
+            ] else if (!isPasswordModule) ...[
               TextField(
                 controller: answerController,
                 decoration: const InputDecoration(labelText: 'Correct Answer'),
@@ -531,13 +817,51 @@ class _QuestionDialogContentState
               return;
             }
 
+            if (isAttackModule) {
+              if (descriptionController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a description')),
+                );
+                return;
+              }
+              if (optionAController.text.isEmpty ||
+                  optionBController.text.isEmpty ||
+                  optionCController.text.isEmpty ||
+                  optionDController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill all 4 options')),
+                );
+                return;
+              }
+              if (selectedCorrectOption == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please select correct answer')),
+                );
+                return;
+              }
+            }
+
             try {
               final content = _getContentValue();
 
-              // Use selected answer for phishing, text input for others
-              final correctAnswer = isPhishingModule
-                  ? selectedPhishingAnswer!
-                  : answerController.text;
+              // Determine correct answer based on module type
+              String correctAnswer;
+              if (isPhishingModule) {
+                correctAnswer = selectedPhishingAnswer!;
+              } else if (isPasswordModule) {
+                correctAnswer = 'valid_password';
+              } else if (isAttackModule) {
+                // Get the selected option text as correct answer
+                correctAnswer = selectedCorrectOption == 'A'
+                    ? optionAController.text
+                    : selectedCorrectOption == 'B'
+                        ? optionBController.text
+                        : selectedCorrectOption == 'C'
+                            ? optionCController.text
+                            : optionDController.text;
+              } else {
+                correctAnswer = answerController.text;
+              }
 
               if (widget.question == null) {
                 await ref
@@ -547,8 +871,8 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: explanationController.text,
-                      mediaUrl: mediaUrlController.text.isEmpty
+                      explanation: isAttackModule ? '' : explanationController.text,
+                      mediaUrl: (mediaType == 'none' || mediaUrlController.text.isEmpty)
                           ? null
                           : mediaUrlController.text,
                     );
@@ -560,13 +884,29 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: explanationController.text,
-                      mediaUrl: mediaUrlController.text.isEmpty
+                      explanation: isAttackModule ? '' : explanationController.text,
+                      mediaUrl: (mediaType == 'none' || mediaUrlController.text.isEmpty)
                           ? null
                           : mediaUrlController.text,
                     );
               }
+
+              // Invalidate the cache to refresh the questions list
               if (mounted) {
+                ref.invalidate(adminQuestionsProvider(widget.moduleType));
+
+                // Invalidate all training providers for this module (including family providers for all difficulties)
+                if (widget.moduleType == 'phishing') {
+                  ref.invalidate(phishingQuestionsProvider);
+                  ref.invalidate(phishingQuestionsByDifficultyProvider);
+                } else if (widget.moduleType == 'password') {
+                  ref.invalidate(passwordQuestionsProvider);
+                  ref.invalidate(passwordQuestionsByDifficultyProvider);
+                } else if (widget.moduleType == 'attack') {
+                  ref.invalidate(attackQuestionsProvider);
+                  ref.invalidate(attackQuestionsByDifficultyProvider);
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(

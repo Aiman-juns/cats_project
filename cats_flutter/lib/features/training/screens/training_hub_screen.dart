@@ -18,9 +18,7 @@ class TrainingHubScreen extends StatelessWidget {
         onLevelSelected: (difficulty) {
           Navigator.pop(context); // Close dialog
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => screenBuilder(difficulty),
-            ),
+            MaterialPageRoute(builder: (context) => screenBuilder(difficulty)),
           );
         },
       ),
@@ -41,9 +39,9 @@ class TrainingHubScreen extends StatelessWidget {
           const SizedBox(height: 8.0),
           Text(
             'Choose a difficulty level before starting each module',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 16.0),
           _ModuleCard(
@@ -66,7 +64,7 @@ class TrainingHubScreen extends StatelessWidget {
             onTap: () => _showLevelSelectionDialog(
               context,
               'Password Dojo',
-              (difficulty) => PasswordDojoScreen(difficulty: difficulty),
+              (difficulty) => PasswordDojoLoaderScreen(difficulty: difficulty),
             ),
           ),
           const SizedBox(height: 12.0),
