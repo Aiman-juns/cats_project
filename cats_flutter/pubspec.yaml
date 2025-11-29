@@ -52,21 +52,12 @@ dependencies:
 
   # UI
   lucide_icons: ^0.257.0
-  gesture_x_detector: ^1.1.1
 
   # Fonts
   google_fonts: ^6.0.0
 
   # Icons
   flutter_launcher_icons: ^0.13.0
-
-  # Video Player
-  youtube_player_flutter: ^9.0.0
-
-  # HTTP Client
-  http: ^1.1.0
-  video_player: ^2.10.1
-  chewie: ^1.13.0
 
 dev_dependencies:
   flutter_test:
@@ -124,4 +115,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-

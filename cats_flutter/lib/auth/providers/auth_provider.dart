@@ -18,7 +18,7 @@ class AuthException implements Exception {
 /// Authentication Provider
 /// Manages login, register, logout, and auth state
 class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
-  AuthProvider() : super(const AsyncValue.loading()) {
+  AuthProvider() : super(const AsyncValue.data(null)) {
     _checkAuthState();
   }
 
@@ -80,39 +80,17 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
   }
 
   /// Register with email, password, and full name
-  Future<void> register(
-    String email,
-    String password,
-    String fullName, {
-    bool isAdmin = false,
-  }) async {
+  Future<void> register(String email, String password, String fullName) async {
     state = const AsyncValue.loading();
     try {
-      // Convert email to lowercase to avoid case sensitivity issues
-      final normalizedEmail = email.toLowerCase().trim();
-
       // Sign up with Supabase Auth
-      final authResponse = await SupabaseConfig.client.auth.signUp(
-        email: normalizedEmail,
+      final authResponse = await SupabaseConfig.client.auth.signUpWithPassword(
+        email: email,
         password: password,
       );
 
       final user = authResponse.user;
       if (user != null) {
-        // Auto-confirm the user email to skip confirmation step
-        // This allows immediate login without email verification
-        try {
-          await SupabaseConfig.client.auth.admin.updateUserById(
-            user.id,
-            attributes: AdminUserAttributes(emailConfirm: true),
-          );
-        } catch (e) {
-          // If admin update fails, continue anyway - user might still be able to login
-          print(
-            'Note: Could not auto-confirm email. User may need to verify: $e',
-          );
-        }
-
         // Generate avatar URL from name
         // For Phase 1, using simple DiceBear initials
         final avatarUrl =
@@ -121,9 +99,9 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
         // Create user profile in database
         final newUser = UserModel(
           id: user.id,
-          email: normalizedEmail,
+          email: email,
           fullName: fullName,
-          role: isAdmin ? 'admin' : 'user',
+          role: 'user',
           avatarUrl: avatarUrl,
           totalScore: 0,
           level: 1,
@@ -139,27 +117,10 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
       state = AsyncValue.error(e, StackTrace.current);
       rethrow;
     } catch (e) {
-      final errorMessage = _parseAuthError(e.toString());
-      final error = AuthException('Registration failed: $errorMessage');
+      final error = AuthException('Registration failed: $e');
       state = AsyncValue.error(error, StackTrace.current);
       rethrow;
     }
-  }
-
-  /// Parse Supabase auth errors to user-friendly messages
-  String _parseAuthError(String error) {
-    if (error.contains('email_address_invalid')) {
-      return 'Email address is invalid. Please use a valid email format (e.g., user@example.com)';
-    } else if (error.contains('email_exists')) {
-      return 'Email address is already registered. Please use a different email or login.';
-    } else if (error.contains('weak_password')) {
-      return 'Password is too weak. Use at least 8 characters with uppercase, numbers, and special characters.';
-    } else if (error.contains('invalid_credentials')) {
-      return 'Invalid email or password. Please check and try again.';
-    } else if (error.contains('over_email_send_rate_limit')) {
-      return 'Too many signup attempts. Please wait a few minutes and try again.';
-    }
-    return error;
   }
 
   /// Logout
@@ -175,26 +136,29 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
   }
 
   /// Check if authenticated
-  bool get isAuthenticated =>
-      state.maybeWhen(data: (user) => user != null, orElse: () => false);
+  bool get isAuthenticated => state.maybeWhen(
+        data: (user) => user != null,
+        orElse: () => false,
+      );
 }
 
 /// Riverpod provider for authentication
-final authProvider =
-    StateNotifierProvider<AuthProvider, AsyncValue<UserModel?>>(
-      (ref) => AuthProvider(),
-    );
+final authProvider = StateNotifierProvider<AuthProvider, AsyncValue<UserModel?>>(
+  (ref) => AuthProvider(),
+);
 
 /// Convenience provider to check if user is authenticated
 final isAuthenticatedProvider = Provider<bool>((ref) {
-  return ref
-      .watch(authProvider)
-      .maybeWhen(data: (user) => user != null, orElse: () => false);
+  return ref.watch(authProvider).maybeWhen(
+        data: (user) => user != null,
+        orElse: () => false,
+      );
 });
 
 /// Convenience provider to get current user
 final currentUserProvider = Provider<UserModel?>((ref) {
-  return ref
-      .watch(authProvider)
-      .maybeWhen(data: (user) => user, orElse: () => null);
+  return ref.watch(authProvider).maybeWhen(
+        data: (user) => user,
+        orElse: () => null,
+      );
 });

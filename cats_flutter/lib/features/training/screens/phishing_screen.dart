@@ -1,15 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
 
 class PhishingScreen extends ConsumerStatefulWidget {
   final int difficulty;
 
-  const PhishingScreen({
-    Key? key,
-    required this.difficulty,
-  }) : super(key: key);
+  const PhishingScreen({Key? key, required this.difficulty}) : super(key: key);
 
   @override
   ConsumerState<PhishingScreen> createState() => _PhishingScreenState();
@@ -30,7 +28,7 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
     final questionsAsync = ref.read(
       phishingQuestionsByDifficultyProvider(widget.difficulty),
     );
-    
+
     questionsAsync.when(
       data: (questions) {
         if (questions.isEmpty || _currentIndex >= questions.length) return;
@@ -49,9 +47,26 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
 
           if (correct) {
             _score +=
-                (6 - question.difficulty) * 10; // More points for harder difficulty
+                (6 - question.difficulty) *
+                10; // More points for harder difficulty
           }
         });
+
+        // Record progress to database
+        final userId = SupabaseConfig.client.auth.currentUser?.id;
+        if (userId != null) {
+          final progress = UserProgress(
+            id: 'temp',
+            userId: userId,
+            questionId: question.id,
+            isCorrect: correct,
+            scoreAwarded: correct ? (6 - question.difficulty) * 10 : 0,
+            attemptDate: DateTime.now(),
+          );
+          recordProgress(progress).catchError((e) {
+            debugPrint('Failed to record progress: $e');
+          });
+        }
 
         // Move to next question after delay
         Future.delayed(const Duration(seconds: 2), () {
@@ -328,24 +343,22 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
 class EmailSimulationCard extends StatelessWidget {
   final Question question;
 
-  const EmailSimulationCard({
-    Key? key,
-    required this.question,
-  }) : super(key: key);
+  const EmailSimulationCard({Key? key, required this.question})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     // Try to parse content as JSON
     Map<String, dynamic>? emailData;
     bool isJsonFormat = false;
-    
+
     try {
       if (question.content.isNotEmpty) {
         emailData = jsonDecode(question.content) as Map<String, dynamic>;
         // Check if it has the expected email structure
-        if (emailData.containsKey('senderName') || 
-            emailData.containsKey('senderEmail') || 
-            emailData.containsKey('subject') || 
+        if (emailData.containsKey('senderName') ||
+            emailData.containsKey('senderEmail') ||
+            emailData.containsKey('subject') ||
             emailData.containsKey('body')) {
           isJsonFormat = true;
         }
@@ -358,9 +371,7 @@ class EmailSimulationCard extends StatelessWidget {
     return Card(
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(horizontal: 8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -386,9 +397,9 @@ class EmailSimulationCard extends StatelessWidget {
                         radius: 20,
                         backgroundColor: Colors.blue.shade600,
                         child: Text(
-                          (emailData['senderName'] as String? ?? '?')
-                              .isNotEmpty
-                              ? (emailData['senderName'] as String)[0].toUpperCase()
+                          (emailData['senderName'] as String? ?? '?').isNotEmpty
+                              ? (emailData['senderName'] as String)[0]
+                                    .toUpperCase()
                               : '?',
                           style: const TextStyle(
                             color: Colors.white,
@@ -404,10 +415,9 @@ class EmailSimulationCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              emailData['senderName'] as String? ?? 'Unknown Sender',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              emailData['senderName'] as String? ??
+                                  'Unknown Sender',
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
@@ -416,9 +426,7 @@ class EmailSimulationCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               emailData['senderEmail'] as String? ?? '',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: Colors.grey.shade600,
                                     fontSize: 12,
@@ -432,9 +440,9 @@ class EmailSimulationCard extends StatelessWidget {
                       Text(
                         'Now',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade500,
-                              fontSize: 11,
-                            ),
+                          color: Colors.grey.shade500,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -447,9 +455,9 @@ class EmailSimulationCard extends StatelessWidget {
                   child: Text(
                     emailData['subject'] as String? ?? 'No Subject',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 // Email Body
@@ -461,9 +469,9 @@ class EmailSimulationCard extends StatelessWidget {
                       Text(
                         emailData['body'] as String? ?? '',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 14,
-                              height: 1.5,
-                            ),
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
                       ),
                       // Media URL image if present
                       if (question.mediaUrl != null) ...[
@@ -510,9 +518,7 @@ class EmailSimulationCard extends StatelessWidget {
                               return Container(
                                 height: 200,
                                 color: Colors.grey.shade200,
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                ),
+                                child: const Icon(Icons.image_not_supported),
                               );
                             },
                           ),
@@ -521,10 +527,9 @@ class EmailSimulationCard extends StatelessWidget {
                       ],
                       Text(
                         question.content,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.w500),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],

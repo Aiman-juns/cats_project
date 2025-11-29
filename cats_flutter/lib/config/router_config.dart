@@ -2,104 +2,79 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/screens/login_screen.dart';
 import '../auth/screens/register_screen.dart';
-import '../features/resources/screens/resources_screen.dart';
-import '../features/resources/screens/resource_detail_screen.dart';
-import '../features/training/screens/training_hub_screen.dart';
-import '../features/assistant/screens/assistant_screen.dart';
-import '../features/performance/screens/performance_screen.dart';
-import '../features/news/screens/news_screen.dart';
-import '../features/news/screens/news_detail_screen.dart';
-import '../features/admin/screens/admin_dashboard_screen.dart';
-import '../shared/widgets/app_shell.dart';
+
+/// Simple Home screen placeholder for Phase 1
+class HomeShellScreen extends StatelessWidget {
+  const HomeShellScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('CyberGuard')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Welcome to CyberGuard',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Phase 1: Authentication Complete',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                // Logout functionality will be added in Phase 2
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// GoRouter Configuration for CyberGuard
-///
-/// Phase 2: ShellRoute with 5-tab navigation
+/// 
+/// Phase 1 Routes:
+/// - /login - Login screen
+/// - /register - Registration screen
+/// - / - Home shell (authenticated)
 class RouterConfig {
-  static final List<RouteBase> routes = [
-    GoRoute(
-      path: '/login',
-      pageBuilder: (context, state) =>
-          MaterialPage(key: state.pageKey, child: const LoginScreen()),
-    ),
-    GoRoute(
-      path: '/register',
-      pageBuilder: (context, state) =>
-          MaterialPage(key: state.pageKey, child: const RegisterScreen()),
-    ),
-    // Phase 2: Shell Route with 5 tabs
-    ShellRoute(
-      pageBuilder: (context, state, child) {
-        return MaterialPage(
-          key: state.pageKey,
-          child: _ShellRouteWidget(child: child),
-        );
-      },
-      routes: [
-        GoRoute(
-          path: '/',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: ResourcesScreen()),
-        ),
-        GoRoute(
-          path: '/training',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: TrainingHubScreen()),
-        ),
-        GoRoute(
-          path: '/assistant',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: AssistantScreen()),
-        ),
-        GoRoute(
-          path: '/performance',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: PerformanceScreen()),
-        ),
-        GoRoute(
-          path: '/news',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: NewsScreen()),
-        ),
-      ],
-    ),
-    // Phase 3: Resource detail route (outside shell)
-    GoRoute(
-      path: '/resource/:id',
-      pageBuilder: (context, state) {
-        final resourceId = state.pathParameters['id']!;
-        return MaterialPage(
-          key: state.pageKey,
-          child: ResourceDetailScreen(resourceId: resourceId),
-        );
-      },
-    ),
-    // Phase 3: News detail route (outside shell)
-    GoRoute(
-      path: '/news/:id',
-      pageBuilder: (context, state) {
-        final newsId = state.pathParameters['id']!;
-        return MaterialPage(
-          key: state.pageKey,
-          child: NewsDetailScreen(newsId: newsId),
-        );
-      },
-    ),
-    // Phase 5: Admin dashboard route (outside shell, admin only)
-    GoRoute(
-      path: '/admin',
-      pageBuilder: (context, state) =>
-          MaterialPage(key: state.pageKey, child: const AdminDashboardScreen()),
-    ),
-  ];
-
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
-      // Phase 2: Basic routing - auth will be enhanced with Riverpod
+      // Phase 1: Simple routing without auth check
+      // Auth checking will be added in Phase 2 with Riverpod
       return null;
     },
-    routes: routes,
+    routes: [
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/register',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const RegisterScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const HomeShellScreen(),
+        ),
+      ),
+    ],
     errorPageBuilder: (context, state) => MaterialPage(
       child: Scaffold(
         appBar: AppBar(title: const Text('Error')),
@@ -121,53 +96,4 @@ class RouterConfig {
       ),
     ),
   );
-}
-
-/// Shell Route Widget that maintains navigation state
-class _ShellRouteWidget extends StatefulWidget {
-  final Widget child;
-
-  const _ShellRouteWidget({required this.child});
-
-  @override
-  State<_ShellRouteWidget> createState() => _ShellRouteWidgetState();
-}
-
-class _ShellRouteWidgetState extends State<_ShellRouteWidget> {
-  int _currentIndex = 0;
-
-  final List<String> _routes = [
-    '/',
-    '/training',
-    '/assistant',
-    '/performance',
-    '/news',
-  ];
-
-  void _onTabChanged(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-    context.go(_routes[index]);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Update current index based on location
-    final location = GoRouterState.of(context).uri.path;
-    final index = _routes.indexOf(location);
-    if (index != -1 && _currentIndex != index) {
-      _currentIndex = index;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShell(
-      currentTabIndex: _currentIndex,
-      onTabChanged: _onTabChanged,
-      child: widget.child,
-    );
-  }
 }

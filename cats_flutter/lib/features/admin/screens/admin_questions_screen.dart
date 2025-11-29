@@ -404,10 +404,18 @@ class _QuestionDialogContentState
       // Derive selected correct option from correctAnswer field
       if (widget.question != null) {
         final answer = widget.question!.correctAnswer.toLowerCase();
-        if (answer.contains('a') || options.isNotEmpty && options[0] == widget.question!.correctAnswer) selectedCorrectOption = 'A';
-        else if (answer.contains('b') || options.length > 1 && options[1] == widget.question!.correctAnswer) selectedCorrectOption = 'B';
-        else if (answer.contains('c') || options.length > 2 && options[2] == widget.question!.correctAnswer) selectedCorrectOption = 'C';
-        else if (answer.contains('d') || options.length > 3 && options[3] == widget.question!.correctAnswer) selectedCorrectOption = 'D';
+        if (answer.contains('a') ||
+            options.isNotEmpty && options[0] == widget.question!.correctAnswer)
+          selectedCorrectOption = 'A';
+        else if (answer.contains('b') ||
+            options.length > 1 && options[1] == widget.question!.correctAnswer)
+          selectedCorrectOption = 'B';
+        else if (answer.contains('c') ||
+            options.length > 2 && options[2] == widget.question!.correctAnswer)
+          selectedCorrectOption = 'C';
+        else if (answer.contains('d') ||
+            options.length > 3 && options[3] == widget.question!.correctAnswer)
+          selectedCorrectOption = 'D';
       }
 
       // Initialize unused controllers
@@ -620,18 +628,24 @@ class _QuestionDialogContentState
               const SizedBox(height: 16),
               Text(
                 'Media Type',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               DropdownButton<String>(
                 value: mediaType,
                 isExpanded: true,
                 items: const [
-                  DropdownMenuItem(value: 'none', child: Text('None (Text Only)')),
+                  DropdownMenuItem(
+                    value: 'none',
+                    child: Text('None (Text Only)'),
+                  ),
                   DropdownMenuItem(value: 'image', child: Text('Image')),
-                  DropdownMenuItem(value: 'youtube', child: Text('YouTube Video')),
+                  DropdownMenuItem(
+                    value: 'youtube',
+                    child: Text('YouTube Video'),
+                  ),
                   DropdownMenuItem(value: 'video', child: Text('MP4 Video')),
                 ],
                 onChanged: (value) {
@@ -646,8 +660,8 @@ class _QuestionDialogContentState
                     labelText: mediaType == 'youtube'
                         ? 'YouTube Video URL or ID'
                         : mediaType == 'video'
-                            ? 'MP4 Video URL'
-                            : 'Image URL',
+                        ? 'MP4 Video URL'
+                        : 'Image URL',
                     hintText: mediaType == 'youtube'
                         ? 'e.g., https://youtube.com/watch?v=...'
                         : 'e.g., https://...',
@@ -657,9 +671,9 @@ class _QuestionDialogContentState
               const SizedBox(height: 16),
               Text(
                 'Answer Options',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -696,9 +710,9 @@ class _QuestionDialogContentState
               const SizedBox(height: 16),
               Text(
                 'Correct Answer',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -855,10 +869,10 @@ class _QuestionDialogContentState
                 correctAnswer = selectedCorrectOption == 'A'
                     ? optionAController.text
                     : selectedCorrectOption == 'B'
-                        ? optionBController.text
-                        : selectedCorrectOption == 'C'
-                            ? optionCController.text
-                            : optionDController.text;
+                    ? optionBController.text
+                    : selectedCorrectOption == 'C'
+                    ? optionCController.text
+                    : optionDController.text;
               } else {
                 correctAnswer = answerController.text;
               }
@@ -871,8 +885,12 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: isAttackModule ? '' : explanationController.text,
-                      mediaUrl: (mediaType == 'none' || mediaUrlController.text.isEmpty)
+                      explanation: isAttackModule
+                          ? ''
+                          : explanationController.text,
+                      mediaUrl:
+                          (mediaType == 'none' ||
+                              mediaUrlController.text.isEmpty)
                           ? null
                           : mediaUrlController.text,
                     );
@@ -884,8 +902,12 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: isAttackModule ? '' : explanationController.text,
-                      mediaUrl: (mediaType == 'none' || mediaUrlController.text.isEmpty)
+                      explanation: isAttackModule
+                          ? ''
+                          : explanationController.text,
+                      mediaUrl:
+                          (mediaType == 'none' ||
+                              mediaUrlController.text.isEmpty)
                           ? null
                           : mediaUrlController.text,
                     );

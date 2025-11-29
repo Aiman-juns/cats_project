@@ -4,15 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
 
 class CyberAttackScreen extends ConsumerStatefulWidget {
   final int difficulty;
 
-  const CyberAttackScreen({
-    Key? key,
-    required this.difficulty,
-  }) : super(key: key);
+  const CyberAttackScreen({Key? key, required this.difficulty})
+    : super(key: key);
 
   @override
   ConsumerState<CyberAttackScreen> createState() => _CyberAttackScreenState();
@@ -25,7 +24,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
   bool _isCorrect = false;
   String _selectedAnswer = '';
   int _attemptCount = 0;
-  
+
   // Video controllers
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
@@ -70,12 +69,11 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
 
       _youtubeController = YoutubePlayerController(
         initialVideoId: videoId,
-        flags: const YoutubePlayerFlags(
-          autoPlay: false,
-          mute: false,
-        ),
+        flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
       );
-    } else if (mediaType == 'video' && mediaUrl != null && mediaUrl.isNotEmpty) {
+    } else if (mediaType == 'video' &&
+        mediaUrl != null &&
+        mediaUrl.isNotEmpty) {
       _videoController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl));
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
@@ -108,6 +106,25 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
           _score += points;
         }
       });
+
+      // Record progress to database
+      final userId = SupabaseConfig.client.auth.currentUser?.id;
+      if (userId != null) {
+        final scoreAwarded = correct
+            ? ((6 - question.difficulty) * 10) ~/ _attemptCount
+            : 0;
+        final progress = UserProgress(
+          id: 'temp',
+          userId: userId,
+          questionId: question.id,
+          isCorrect: correct,
+          scoreAwarded: scoreAwarded,
+          attemptDate: DateTime.now(),
+        );
+        recordProgress(progress).catchError((e) {
+          debugPrint('Failed to record progress: $e');
+        });
+      }
     });
   }
 
@@ -239,7 +256,8 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Media display based on type
-                          if (mediaType == 'youtube' && _youtubeController != null)
+                          if (mediaType == 'youtube' &&
+                              _youtubeController != null)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -284,16 +302,18 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                     fit: BoxFit.cover,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 250,
-                                        color: Colors.grey.shade200,
-                                        child: const Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      );
-                                    },
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Container(
+                                            width: double.infinity,
+                                            height: 250,
+                                            color: Colors.grey.shade200,
+                                            child: const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          );
+                                        },
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
                                         width: double.infinity,
@@ -349,7 +369,8 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                       itemBuilder: (context, index) {
                         final answer = options[index];
                         final isSelected = _selectedAnswer == answer;
-                        final isCorrectAnswer = question.correctAnswer == answer;
+                        final isCorrectAnswer =
+                            question.correctAnswer == answer;
                         final showResult =
                             _isAnswered && (isSelected || isCorrectAnswer);
                         final resultIsCorrect = isCorrectAnswer;
@@ -415,9 +436,9 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                     Center(
                       child: Text(
                         'No options available for this question',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
                       ),
                     ),
                   const SizedBox(height: 24),
@@ -448,10 +469,8 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Correct Answer: ${question.correctAnswer}',
-                            style:
-                                Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),

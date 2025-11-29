@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
 
 class PasswordDojoScreen extends ConsumerStatefulWidget {
@@ -121,6 +122,22 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
   }
 
   void _showSuccessDialog() {
+    // Record progress to database
+    final userId = SupabaseConfig.client.auth.currentUser?.id;
+    if (userId != null) {
+      final progress = UserProgress(
+        id: 'temp',
+        userId: userId,
+        questionId: widget.question.id,
+        isCorrect: true,
+        scoreAwarded: (6 - widget.question.difficulty) * 10,
+        attemptDate: DateTime.now(),
+      );
+      recordProgress(progress).catchError((e) {
+        debugPrint('Failed to record progress: $e');
+      });
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,

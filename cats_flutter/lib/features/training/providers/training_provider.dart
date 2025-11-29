@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../../../config/supabase_config.dart';
 
 /// Question Models
@@ -45,6 +46,7 @@ class UserProgress {
   final bool isCorrect;
   final int scoreAwarded;
   final DateTime attemptDate;
+  final Question? question;
 
   UserProgress({
     required this.id,
@@ -53,9 +55,21 @@ class UserProgress {
     required this.isCorrect,
     required this.scoreAwarded,
     required this.attemptDate,
+    this.question,
   });
 
   factory UserProgress.fromJson(Map<String, dynamic> json) {
+    // Try to parse nested question object from Supabase join
+    Question? parsedQuestion;
+    try {
+      final questionData = json['questions'] ?? json['question'];
+      if (questionData != null && questionData is Map<String, dynamic>) {
+        parsedQuestion = Question.fromJson(questionData);
+      }
+    } catch (e) {
+      // Silently ignore if question parsing fails
+    }
+
     return UserProgress(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -63,6 +77,7 @@ class UserProgress {
       isCorrect: json['is_correct'] as bool,
       scoreAwarded: json['score_awarded'] as int,
       attemptDate: DateTime.parse(json['attempt_date'] as String),
+      question: parsedQuestion,
     );
   }
 
@@ -116,8 +131,15 @@ Future<List<Question>> fetchQuestionsByModuleAndDifficulty(
 /// Record user progress
 Future<void> recordProgress(UserProgress progress) async {
   try {
-    await SupabaseConfig.client.from('user_progress').insert(progress.toJson());
+    debugPrint(
+      'Recording progress for user ${progress.userId}, question ${progress.questionId}',
+    );
+    final data = progress.toJson();
+    debugPrint('Progress data: $data');
+    await SupabaseConfig.client.from('user_progress').insert(data);
+    debugPrint('Progress recorded successfully');
   } catch (e) {
+    debugPrint('Error recording progress: $e');
     throw Exception('Failed to record progress: $e');
   }
 }
@@ -147,6 +169,68 @@ Future<List<UserProgress>> fetchUserProgressByModule(
   }
 }
 
+/// Fetch recent activity for a user (last 5 attempts)
+Future<List<UserProgress>> fetchRecentActivity(String userId) async {
+  try {
+    final response = await SupabaseConfig.client
+        .from('user_progress')
+        .select('*, questions(*)')
+        .eq('user_id', userId)
+        .order('attempt_date', ascending: false)
+        .limit(5);
+
+    return (response as List<dynamic>)
+        .map((json) => UserProgress.fromJson(json as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    throw Exception('Failed to fetch recent activity: $e');
+  }
+}
+
+/// Calculate progress per difficulty level for a module
+Future<Map<int, double>> calculateModuleProgress(
+  String userId,
+  String moduleType,
+) async {
+  try {
+    // Fetch all questions for this module
+    final questions = await fetchQuestionsByModule(moduleType);
+
+    // Group questions by difficulty
+    final Map<int, int> totalByDifficulty = {1: 0, 2: 0, 3: 0};
+    final Map<int, int> correctByDifficulty = {1: 0, 2: 0, 3: 0};
+
+    for (final q in questions) {
+      totalByDifficulty[q.difficulty] =
+          (totalByDifficulty[q.difficulty] ?? 0) + 1;
+    }
+
+    // Fetch user progress for this module
+    final userProgress = await fetchUserProgressByModule(userId, moduleType);
+
+    // Count correct answers by difficulty
+    for (final progress in userProgress) {
+      final question = questions.firstWhere((q) => q.id == progress.questionId);
+      if (progress.isCorrect) {
+        correctByDifficulty[question.difficulty] =
+            (correctByDifficulty[question.difficulty] ?? 0) + 1;
+      }
+    }
+
+    // Calculate percentages
+    final Map<int, double> progressMap = {};
+    for (int level = 1; level <= 3; level++) {
+      final total = totalByDifficulty[level] ?? 0;
+      final correct = correctByDifficulty[level] ?? 0;
+      progressMap[level] = total == 0 ? 0.0 : correct / total;
+    }
+
+    return progressMap;
+  } catch (e) {
+    throw Exception('Failed to calculate module progress: $e');
+  }
+}
+
 /// Riverpod Providers
 
 /// Phishing module questions
@@ -157,8 +241,8 @@ final phishingQuestionsProvider = FutureProvider<List<Question>>((ref) async {
 /// Phishing module questions filtered by difficulty
 final phishingQuestionsByDifficultyProvider =
     FutureProvider.family<List<Question>, int>((ref, difficulty) async {
-  return fetchQuestionsByModuleAndDifficulty('phishing', difficulty);
-});
+      return fetchQuestionsByModuleAndDifficulty('phishing', difficulty);
+    });
 
 /// Password module questions
 final passwordQuestionsProvider = FutureProvider<List<Question>>((ref) async {
@@ -168,8 +252,8 @@ final passwordQuestionsProvider = FutureProvider<List<Question>>((ref) async {
 /// Password module questions filtered by difficulty
 final passwordQuestionsByDifficultyProvider =
     FutureProvider.family<List<Question>, int>((ref, difficulty) async {
-  return fetchQuestionsByModuleAndDifficulty('password', difficulty);
-});
+      return fetchQuestionsByModuleAndDifficulty('password', difficulty);
+    });
 
 /// Attack module questions
 final attackQuestionsProvider = FutureProvider<List<Question>>((ref) async {
@@ -179,8 +263,8 @@ final attackQuestionsProvider = FutureProvider<List<Question>>((ref) async {
 /// Attack module questions filtered by difficulty
 final attackQuestionsByDifficultyProvider =
     FutureProvider.family<List<Question>, int>((ref, difficulty) async {
-  return fetchQuestionsByModuleAndDifficulty('attack', difficulty);
-});
+      return fetchQuestionsByModuleAndDifficulty('attack', difficulty);
+    });
 
 /// User progress for phishing module
 final phishingProgressProvider =
@@ -198,4 +282,19 @@ final passwordProgressProvider =
 final attackProgressProvider =
     FutureProvider.family<List<UserProgress>, String>((ref, userId) async {
       return fetchUserProgressByModule(userId, 'attack');
+    });
+
+/// Recent activity feed for a user (last 5 attempts)
+final recentActivityProvider =
+    FutureProvider.family<List<UserProgress>, String>((ref, userId) async {
+      return fetchRecentActivity(userId);
+    });
+
+/// Module progress tracking - percentage complete per difficulty level
+final moduleProgressProvider =
+    FutureProvider.family<
+      Map<int, double>,
+      ({String userId, String moduleType})
+    >((ref, params) async {
+      return calculateModuleProgress(params.userId, params.moduleType);
     });
